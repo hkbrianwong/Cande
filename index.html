@@ -59,8 +59,10 @@
     <button type="submit">Add Reading</button>
 </form>
 
-<button id="updateChartBtn">Update Chart</button>
+    <button id="updateChartBtn">Update Chart</button>
 <button id="exportCsvBtn">Export CSV</button>
+<button id="clearDataBtn" style="background-color: #ff6666; color: white;">Clear All Data</button>
+
 
 <table id="bpTable">
     <thead>
@@ -118,6 +120,18 @@
             tableBody.innerHTML += row;
         });
     }
+
+    document.getElementById('clearDataBtn').addEventListener('click', () => {
+    if (confirm("Are you sure you want to delete all stored readings? This cannot be undone.")) {
+        readings = [];
+        localStorage.removeItem('bpReadings');
+        updateTable();
+        bpChart.data.labels = [];
+        bpChart.data.datasets.forEach(ds => ds.data = []);
+        bpChart.update();
+    }
+});
+
 
     function updateChart() {
         if (readings.length === 0) {
