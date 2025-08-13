@@ -1,231 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Blood Pressure Tracker</title>
-<link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#3498db" />
+<meta charset="UTF-8">
+<title>BP Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 15px;
-    background: #f4f4f4;
-  }
-  h1 {
-    text-align: center;
-    color: #2c3e50;
-  }
-  form {
-    background: #fff;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-  }
-  label {
-    display: block;
-    margin-top: 10px;
-    font-weight: bold;
-  }
-  input {
-    width: 100%;
-    padding: 8px;
-    margin-top: 4px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-  }
-  button {
-    margin-top: 15px;
-    padding: 10px;
-    width: 100%;
-    border: none;
-    background: #3498db;
-    color: white;
-    font-size: 16px;
-    border-radius: 6px;
-  }
-  button:hover {
-    background: #2980b9;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-  }
-  th, td {
-    padding: 8px;
-    text-align: center;
-    border-bottom: 1px solid #ddd;
-  }
-  canvas {
-    background: #fff;
-    padding: 10px;
-    border-radius: 8px;
-    margin-top: 20px;
-  }
-  .toggle-buttons {
-    display: flex;
-    justify-content: center;
-    margin: 10px 0;
-  }
-  .toggle-buttons button {
-    flex: 1;
-    margin: 0 5px;
-    background: #2ecc71;
-  }
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  label { display: block; margin-top: 10px; }
+  input { padding: 5px; margin-top: 3px; width: 100%; }
+  button { margin-top: 10px; padding: 8px 12px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  th { background-color: #f4f4f4; }
+  canvas { margin-top: 20px; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<h1>🩺 BP Tracker</h1>
+<h2>Blood Pressure Tracker</h2>
 
-<form id="bpForm">
-  <label>Date: <input type="date" id="date" required></label>
-  <label>Time: <input type="time" id="time" required></label>
-<label>Systolic: 
+<label>Date & Time:
+  <input type="datetime-local" id="datetime">
+</label>
+<label>Systolic (mmHg):
   <input type="number" id="systolic" inputmode="numeric" pattern="[0-9]*" required>
 </label>
-<label>Diastolic: 
+<label>Diastolic (mmHg):
   <input type="number" id="diastolic" inputmode="numeric" pattern="[0-9]*" required>
 </label>
-<label>Pulse: 
+<label>Pulse (bpm):
   <input type="number" id="pulse" inputmode="numeric" pattern="[0-9]*" required>
 </label>
 
-  
-  <button type="submit">Add Record</button>
-</form>
+<button onclick="addReading()">Add Reading</button>
+<button onclick="exportCSV()">Export CSV</button>
 
-<h2>📋 Records</h2>
-<table id="recordsTable">
+<canvas id="bpChart"></canvas>
+
+<table id="bpTable">
   <thead>
     <tr>
-      <th>Date</th>
-      <th>Time</th>
+      <th>Date & Time</th>
       <th>Systolic</th>
       <th>Diastolic</th>
       <th>Pulse</th>
-      <th>Delete</th>
     </tr>
   </thead>
   <tbody></tbody>
 </table>
 
-<button onclick="exportCSV()">📤 Export CSV</button>
-
-<h2>📊 Graph</h2>
-<div class="toggle-buttons">
-  <button onclick="setRange(7)">Last 7 days</button>
-  <button onclick="setRange(30)">Last 30 days</button>
-</div>
-<canvas id="bpChart" height="300"></canvas>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const form = document.getElementById('bpForm');
-  const tableBody = document.querySelector('#recordsTable tbody');
-  const chartCanvas = document.getElementById('bpChart');
-  let records = JSON.parse(localStorage.getItem('bpRecords')) || [];
-  let chart;
-  let chartRange = 7;
+let readings = JSON.parse(localStorage.getItem('bpReadings') || '[]');
 
-  document.getElementById('date').value = new Date().toISOString().split('T')[0];
-  document.getElementById('time').value = new Date().toTimeString().slice(0,5);
-
-  function saveRecords() {
-    localStorage.setItem('bpRecords', JSON.stringify(records));
-  }
-
-  function renderTable() {
-    tableBody.innerHTML = '';
-    records.forEach((r, index) => {
-      const row = `<tr>
-        <td>${r.date}</td>
-        <td>${r.time}</td>
-        <td>${r.systolic}</td>
-        <td>${r.diastolic}</td>
-        <td>${r.pulse}</td>
-        <td><button onclick="deleteRecord(${index})">❌</button></td>
-      </tr>`;
-      tableBody.innerHTML += row;
-    });
-  }
-
-  function deleteRecord(index) {
-    records.splice(index, 1);
-    saveRecords();
-    renderTable();
-    renderChart();
-  }
-
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const newRecord = {
-      date: document.getElementById('date').value,
-      time: document.getElementById('time').value,
-      systolic: document.getElementById('systolic').value,
-      diastolic: document.getElementById('diastolic').value,
-      pulse: document.getElementById('pulse').value
-    };
-    records.push(newRecord);
-    saveRecords();
-    renderTable();
-    renderChart();
-    form.reset();
-    document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('time').value = new Date().toTimeString().slice(0,5);
-  });
-
-  function setRange(days) {
-    chartRange = days;
-    renderChart();
-  }
-
-  function renderChart() {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - chartRange);
-
-    const filtered = records.filter(r => new Date(r.date) >= cutoffDate);
-
-    const labels = filtered.map(r => `${r.date} ${r.time}`);
-    const systolicData = filtered.map(r => r.systolic);
-    const diastolicData = filtered.map(r => r.diastolic);
-    const pulseData = filtered.map(r => r.pulse);
-
-    if (chart) chart.destroy();
-    chart = new Chart(chartCanvas, {
-      type: 'line',
-      data: {
-        labels: labels,
+const ctx = document.getElementById('bpChart').getContext('2d');
+let bpChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: readings.map(r => r.datetime),
         datasets: [
-          { label: 'Systolic', data: systolicData, borderColor: 'red', fill: false },
-          { label: 'Diastolic', data: diastolicData, borderColor: 'blue', fill: false },
-          { label: 'Pulse', data: pulseData, borderColor: 'green', fill: false }
+            {
+                label: 'Systolic (mmHg)',
+                data: readings.map(r => r.systolic),
+                borderColor: 'orange',
+                backgroundColor: 'orange',
+                fill: false,
+                tension: 0.3
+            },
+            {
+                label: 'Diastolic (mmHg)',
+                data: readings.map(r => r.diastolic),
+                borderColor: 'gold',
+                backgroundColor: 'gold',
+                fill: false,
+                tension: 0.3
+            }
         ]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  }
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Blood Pressure Readings' }
+        },
+        scales: {
+            y: {
+                title: { display: true, text: 'Blood Pressure (mmHg)' },
+                beginAtZero: false
+            },
+            x: {
+                title: { display: true, text: 'Date & Time' }
+            }
+        }
+    }
+});
 
-  function exportCSV() {
-    let csv = 'Date,Time,Systolic,Diastolic,Pulse\n';
-    records.forEach(r => {
-      csv += `${r.date},${r.time},${r.systolic},${r.diastolic},${r.pulse}\n`;
+function updateTable() {
+    const tbody = document.querySelector('#bpTable tbody');
+    tbody.innerHTML = '';
+    readings.forEach(r => {
+        const row = `<tr>
+            <td>${r.datetime}</td>
+            <td>${r.systolic}</td>
+            <td>${r.diastolic}</td>
+            <td>${r.pulse}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+    });
+}
+
+function updateChart() {
+    bpChart.data.labels = readings.map(r => r.datetime);
+    bpChart.data.datasets[0].data = readings.map(r => r.systolic);
+    bpChart.data.datasets[1].data = readings.map(r => r.diastolic);
+    bpChart.update();
+}
+
+function addReading() {
+    const datetime = document.getElementById('datetime').value || new Date().toLocaleString();
+    const systolic = parseInt(document.getElementById('systolic').value);
+    const diastolic = parseInt(document.getElementById('diastolic').value);
+    const pulse = parseInt(document.getElementById('pulse').value);
+    
+    if (!systolic || !diastolic || !pulse) {
+        alert('Please enter all values');
+        return;
+    }
+    
+    readings.push({ datetime, systolic, diastolic, pulse });
+    localStorage.setItem('bpReadings', JSON.stringify(readings));
+    updateTable();
+    updateChart();
+
+    document.getElementById('systolic').value = '';
+    document.getElementById('diastolic').value = '';
+    document.getElementById('pulse').value = '';
+}
+
+function exportCSV() {
+    let csv = 'Date & Time,Systolic,Diastolic,Pulse\n';
+    readings.forEach(r => {
+        csv += `${r.datetime},${r.systolic},${r.diastolic},${r.pulse}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'blood_pressure_records.csv';
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'bp_readings.csv');
     a.click();
-  }
+}
 
-  renderTable();
-  renderChart();
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-  }
+updateTable();
+updateChart();
 </script>
+
 </body>
 </html>
