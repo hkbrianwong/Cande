@@ -3,66 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BP Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Blood Pressure Tracker</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        form, table, canvas {
-            max-width: 100%;
-        }
-        label {
-            display: block;
-            margin-top: 10px;
-        }
-        input {
-            padding: 5px;
-            font-size: 1em;
-            width: 100%;
-        }
-        button {
-            margin-top: 10px;
-            padding: 8px 12px;
-            font-size: 1em;
-        }
-        table {
-            border-collapse: collapse;
-            margin-top: 20px;
-            width: 100%;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 6px;
-            text-align: center;
-        }
-        canvas {
-            margin-top: 20px;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
+        h1 { text-align: center; }
+        input, button { margin: 5px; padding: 8px; font-size: 1em; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #eee; }
+        canvas { background: white; margin-top: 20px; }
+        .btn-danger { background-color: #ff6666; color: white; }
     </style>
 </head>
 <body>
 
 <h1>Blood Pressure Tracker</h1>
 
-<form id="bpForm">
-    <label>Systolic:
-        <input type="number" id="systolic" inputmode="numeric" pattern="[0-9]*" required>
-    </label>
-    <label>Diastolic:
-        <input type="number" id="diastolic" inputmode="numeric" pattern="[0-9]*" required>
-    </label>
-    <label>Pulse:
-        <input type="number" id="pulse" inputmode="numeric" pattern="[0-9]*" required>
-    </label>
-    <button type="submit">Add Reading</button>
-</form>
+<!-- Date & Time Inputs -->
+<input type="date" id="dateInput">
+<input type="time" id="timeInput">
 
-    <button id="updateChartBtn">Update Chart</button>
+<!-- Number Inputs -->
+<input type="number" id="systolic" placeholder="Systolic" inputmode="numeric" pattern="[0-9]*">
+<input type="number" id="diastolic" placeholder="Diastolic" inputmode="numeric" pattern="[0-9]*">
+<input type="number" id="pulse" placeholder="Pulse" inputmode="numeric" pattern="[0-9]*">
+
+<button id="addBtn">Add Reading</button>
+<button id="updateChartBtn">Update Chart</button>
 <button id="exportCsvBtn">Export CSV</button>
-<button id="clearDataBtn" style="background-color: #ff6666; color: white;">Clear All Data</button>
-
+<button id="clearDataBtn" class="btn-danger">Clear All Data</button>
 
 <table id="bpTable">
     <thead>
@@ -76,15 +45,22 @@
     <tbody></tbody>
 </table>
 
-<canvas id="bpChart" height="200"></canvas>
+<canvas id="bpChart" width="400" height="200"></canvas>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let readings = JSON.parse(localStorage.getItem('bpReadings')) || [];
 
-    const form = document.getElementById('bpForm');
-    const tableBody = document.querySelector('#bpTable tbody');
-    const ctx = document.getElementById('bpChart').getContext('2d');
+    // 預設日期時間
+    function setDefaultDateTime() {
+        const now = new Date();
+        document.getElementById('dateInput').value = now.toISOString().split('T')[0];
+        document.getElementById('timeInput').value = now.toTimeString().slice(0,5);
+    }
+    setDefaultDateTime();
 
+    // Chart 初始化（空）
+    const ctx = document.getElementById('bpChart').getContext('2d');
     let bpChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -97,10 +73,7 @@
         },
         options: {
             responsive: true,
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: true, text: 'Blood Pressure Readings' }
-            },
+            plugins: { legend: { position: 'top' } },
             scales: {
                 y: { title: { display: true, text: 'Value' }, beginAtZero: false },
                 x: { title: { display: true, text: 'Date & Time' } }
@@ -109,76 +82,74 @@
     });
 
     function updateTable() {
-        tableBody.innerHTML = '';
+        const tbody = document.querySelector('#bpTable tbody');
+        tbody.innerHTML = '';
         readings.forEach(r => {
-            const row = `<tr>
-                <td>${r.date}</td>
-                <td>${r.systolic}</td>
-                <td>${r.diastolic}</td>
-                <td>${r.pulse}</td>
-            </tr>`;
-            tableBody.innerHTML += row;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${r.datetime}</td><td>${r.systolic}</td><td>${r.diastolic}</td><td>${r.pulse}</td>`;
+            tbody.appendChild(tr);
         });
     }
 
-    document.getElementById('clearDataBtn').addEventListener('click', () => {
-    if (confirm("Are you sure you want to delete all stored readings? This cannot be undone.")) {
-        readings = [];
-        localStorage.removeItem('bpReadings');
-        updateTable();
-        bpChart.data.labels = [];
-        bpChart.data.datasets.forEach(ds => ds.data = []);
-        bpChart.update();
-    }
-});
-
-
     function updateChart() {
-        if (readings.length === 0) {
-            alert("No data to display in chart.");
-            return;
-        }
-        bpChart.data.labels = readings.map(r => r.date);
+        if (readings.length === 0) return;
+        bpChart.data.labels = readings.map(r => r.datetime);
         bpChart.data.datasets[0].data = readings.map(r => r.systolic);
         bpChart.data.datasets[1].data = readings.map(r => r.diastolic);
         bpChart.data.datasets[2].data = readings.map(r => r.pulse);
         bpChart.update();
     }
 
-    form.addEventListener('submit', e => {
-        e.preventDefault();
-        const date = new Date().toLocaleString();
+    document.getElementById('addBtn').addEventListener('click', () => {
+        const date = document.getElementById('dateInput').value;
+        const time = document.getElementById('timeInput').value;
         const systolic = parseInt(document.getElementById('systolic').value);
         const diastolic = parseInt(document.getElementById('diastolic').value);
         const pulse = parseInt(document.getElementById('pulse').value);
-        readings.push({ date, systolic, diastolic, pulse });
+
+        if (!date || !time || isNaN(systolic) || isNaN(diastolic) || isNaN(pulse)) {
+            alert("Please fill all fields correctly.");
+            return;
+        }
+
+        const datetime = `${date} ${time}`;
+        readings.push({ datetime, systolic, diastolic, pulse });
         localStorage.setItem('bpReadings', JSON.stringify(readings));
-        form.reset();
+
         updateTable();
+        setDefaultDateTime();
+        document.getElementById('systolic').value = '';
+        document.getElementById('diastolic').value = '';
+        document.getElementById('pulse').value = '';
     });
 
     document.getElementById('updateChartBtn').addEventListener('click', updateChart);
 
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
-        if (readings.length === 0) {
-            alert("No data to export.");
-            return;
-        }
         let csv = "Date & Time,Systolic,Diastolic,Pulse\n";
         readings.forEach(r => {
-            csv += `${r.date},${r.systolic},${r.diastolic},${r.pulse}\n`;
+            csv += `${r.datetime},${r.systolic},${r.diastolic},${r.pulse}\n`;
         });
-        const blob = new Blob([csv], { type: "text/csv" });
+        const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = "bp_readings.csv";
+        a.download = 'bp_readings.csv';
         a.click();
-        URL.revokeObjectURL(url);
     });
 
-    // 頁面加載時只更新表格，不畫圖
-    updateTable();
+    document.getElementById('clearDataBtn').addEventListener('click', () => {
+        if (confirm("Are you sure you want to delete all stored readings?")) {
+            readings = [];
+            localStorage.removeItem('bpReadings');
+            updateTable();
+            bpChart.data.labels = [];
+            bpChart.data.datasets.forEach(ds => ds.data = []);
+            bpChart.update();
+        }
+    });
+
+    updateTable(); // 初始化只更新表格，不畫圖
 </script>
 
 </body>
