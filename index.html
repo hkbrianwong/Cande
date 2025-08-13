@@ -83,9 +83,17 @@
 <form id="bpForm">
   <label>Date: <input type="date" id="date" required></label>
   <label>Time: <input type="time" id="time" required></label>
-  <label>Systolic: <input type="number" id="systolic" required></label>
-  <label>Diastolic: <input type="number" id="diastolic" required></label>
-  <label>Pulse: <input type="number" id="pulse" required></label>
+<label>Systolic: 
+  <input type="number" id="systolic" inputmode="numeric" pattern="[0-9]*" required>
+</label>
+<label>Diastolic: 
+  <input type="number" id="diastolic" inputmode="numeric" pattern="[0-9]*" required>
+</label>
+<label>Pulse: 
+  <input type="number" id="pulse" inputmode="numeric" pattern="[0-9]*" required>
+</label>
+
+  
   <button type="submit">Add Record</button>
 </form>
 
